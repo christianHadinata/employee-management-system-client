@@ -2,9 +2,14 @@ import axios from "axios";
 import React, { useEffect, useState } from "react";
 import type { EmployeeTypes } from "../../types/Employee";
 import { useNavigate } from "react-router-dom";
+import DeleteConfirmationModal from "./DeleteConfirmationModal";
 
 export default function ListEmployees() {
   const [employees, setEmployees] = useState<EmployeeTypes[]>([]);
+  const [showModal, setShowModal] = useState(false);
+  const [employeeToDeleteId, setEmployeeToDeleteId] = useState<number | null>(
+    null
+  );
 
   const navigate = useNavigate();
 
@@ -20,17 +25,49 @@ export default function ListEmployees() {
     };
 
     fetchEmployeesData();
-  }, [employees]);
+  }, []);
 
-  const handleDelete = async (id: number) => {
-    const { data } = await axios.delete<string>(
-      `http://localhost:8080/api/employees/${id}`
-    );
+  const openDeleteModal = (id: number) => {
+    setEmployeeToDeleteId(id);
+    setShowModal(true);
+  };
 
-    if (data) {
-      employees.filter((employee) => employee.id !== id);
+  const closeDeleteModal = () => {
+    setShowModal(false);
+    setEmployeeToDeleteId(null);
+  };
+
+  const confirmDelete = async () => {
+    if (employeeToDeleteId === null) return;
+
+    try {
+      const { data } = await axios.delete<string>(
+        `http://localhost:8080/api/employees/${employeeToDeleteId}`
+      );
+
+      if (data) {
+        setEmployees((prevEmployees) =>
+          prevEmployees.filter((employee) => employee.id !== employeeToDeleteId)
+        );
+      }
+
+      console.log(`Employee ID ${employeeToDeleteId} berhasil dihapus.`);
+    } catch (error) {
+      console.error("Gagal menghapus karyawan:", error);
+    } finally {
+      closeDeleteModal();
     }
   };
+
+  // const handleDelete = async (id: number) => {
+  //   const { data } = await axios.delete<string>(
+  //     `http://localhost:8080/api/employees/${id}`
+  //   );
+
+  //   if (data) {
+  //     employees.filter((employee) => employee.id !== id);
+  //   }
+  // };
 
   return (
     <>
@@ -81,7 +118,7 @@ export default function ListEmployees() {
                         </button>
                         <button
                           className="bg-red-600 px-4 py-2 rounded-md text-white cursor-pointer hover:bg-red-800"
-                          onClick={() => handleDelete(employee.id)}
+                          onClick={() => openDeleteModal(employee.id)}
                         >
                           Delete
                         </button>
@@ -94,6 +131,12 @@ export default function ListEmployees() {
           </table>
         </div>
       </div>
+      <DeleteConfirmationModal
+        show={showModal}
+        employeeId={employeeToDeleteId}
+        onClose={closeDeleteModal}
+        onConfirm={confirmDelete}
+      />
     </>
   );
 }
